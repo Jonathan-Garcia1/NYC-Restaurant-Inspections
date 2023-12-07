@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import content as cn
+import uuid
 
 # Set the page config to use wide format
 st.set_page_config(layout="wide")
@@ -42,7 +43,34 @@ def display_dataframe(file_name, title='', description='', max_height=760):
 
 st.markdown(css, unsafe_allow_html=True)
 
+def display_styled_code_block(code_content, max_height=300):
+    unique_class_name = f"custom-code-container-{uuid.uuid4().hex[:6]}"
 
+    # CSS to be added to the app
+    css_styled_code = f'''
+    <style>
+        .{unique_class_name} pre {{
+            max-height: {max_height}px;
+            overflow: auto;
+            margin-bottom: 1em;
+        }}
+        .{unique_class_name} pre::-webkit-scrollbar-corner {{
+            background-color: transparent;
+        }}
+    </style>
+    '''
+    
+    # The code block with custom styling using HTML tags
+    code_block = f'''
+    <div class="{unique_class_name}">
+        <pre><code>{code_content}</code></pre>
+    </div>
+    '''
+    
+    # Adding CSS and the code block to the Streamlit app
+    st.markdown(css_styled_code, unsafe_allow_html=True)
+    st.markdown(code_block, unsafe_allow_html=True)
+    
 # Project Title, Description, and Objectives
 st.title("New York Health Inspection Prediction")
 
@@ -278,51 +306,7 @@ with st.expander("Prepare"):
         
         
         # Create a markdown block with custom HTML for the code
-        code_content = '''
-        ['Administrative Miscellaneous / Compliance Inspection',
-        'Administrative Miscellaneous / Initial Inspection',
-        'Administrative Miscellaneous / Re-inspection',
-        'Administrative Miscellaneous / Reopening Inspection',
-        'Administrative Miscellaneous / Second Compliance Inspection',
-        'Calorie Posting / Compliance Inspection',
-        'Calorie Posting / Initial Inspection',
-        'Calorie Posting / Re-inspection',
-        'Cycle Inspection / Compliance Inspection',
-        'Cycle Inspection / Initial Inspection',
-        'Cycle Inspection / Re-inspection',
-        'Cycle Inspection / Reopening Inspection',
-        'Cycle Inspection / Second Compliance Inspection',
-        'Inter-Agency Task Force / Initial Inspection',
-        'Inter-Agency Task Force / Re-inspection',
-        'Pre-permit (Non-operational) / Compliance Inspection',
-        'Pre-permit (Non-operational) / Initial Inspection',
-        'Pre-permit (Non-operational) / Re-inspection',
-        'Pre-permit (Non-operational) / Second Compliance Inspection',
-        'Pre-permit (Operational) / Compliance Inspection',
-        'Pre-permit (Operational) / Initial Inspection',
-        'Pre-permit (Operational) / Re-inspection',
-        'Pre-permit (Operational) / Reopening Inspection',
-        'Pre-permit (Operational) / Second Compliance Inspection',
-        'Smoke-Free Air Act / Compliance Inspection',
-        'Smoke-Free Air Act / Initial Inspection',
-        'Smoke-Free Air Act / Limited Inspection',
-        'Smoke-Free Air Act / Re-inspection',
-        'Trans Fat / Compliance Inspection',
-        'Trans Fat / Initial Inspection',
-        'Trans Fat / Re-inspection']
-        '''
-
-
-        # Create a markdown block with your code inside a code block
-        code_block = f'''
-        <div class="custom-code-container">
-
-        ```python
-        {code_content}
-        ```
-        </div>
-        '''
-        st.markdown(code_block, unsafe_allow_html=True)
+        display_styled_code_block(cn.inspection_type, max_height=300)
     
         
         st.markdown(
@@ -391,6 +375,197 @@ with st.expander("Prepare"):
         )
         
         display_dataframe('inspections_camisg.csv')
+        
+        st.markdown(
+            '''
+            The data format clearly shows that individual violations from an inspection are recorded on separate rows. However, it's unusual to observe different types of inspections, such as 'Administrative Miscellaneous', occurring concurrently within a single visit. Notably, rows categorized under 'Administrative Miscellaneous' frequently present missing data in the 'violation_code' field. The next step in our analysis involves determining the frequency of NaN values within the 'Administrative Miscellaneous' inspection category
+            '''
+        )
+        
+        st.code(
+            '''
+            # Group by 'inspection_type' and count null 'violation_code' entries
+            null_score_count = inspection_df.groupby('inspection_type').apply(lambda x: x['score'].isnull().sum())
+
+            # The result is a Series where the index is 'inspection_type' and the values are the counts of null 'violation_code'
+            print(null_score_count)
+
+            '''
+        )
+        
+        st.code(
+            '''
+            inspection_type
+            Administrative Miscellaneous / Compliance Inspection             99
+            Administrative Miscellaneous / Initial Inspection              4899
+            Administrative Miscellaneous / Re-inspection                    975
+            Administrative Miscellaneous / Reopening Inspection              43
+            Administrative Miscellaneous / Second Compliance Inspection       8
+            Cycle Inspection / Compliance Inspection                          0
+            Cycle Inspection / Initial Inspection                             0
+            Cycle Inspection / Re-inspection                                  0
+            Cycle Inspection / Reopening Inspection                           0
+            Cycle Inspection / Second Compliance Inspection                   0
+            Inter-Agency Task Force / Initial Inspection                      0
+            Inter-Agency Task Force / Re-inspection                           0
+            '''
+        )
+        
+        st.markdown(
+            '''
+            The analysis reveals that all the missing 'violation_code' entries are tied to various "Administrative" inspection types. This pattern suggests that "Administrative" inspections might be documenting a distinct category of violations, particularly given the occurrence of both "Administrative" and "Cycle" inspections within the same visit. This finding indicates a potential strategy to either deduce the score for these cases or consider the removal of "Administrative" inspection types from our dataset.
+
+            To proceed effectively, it's important to closely examine the specific types of violations recorded under "Administrative" inspections. Understanding the nuances of these violations will assist in determining their relevance to our overall data analysis and their impact on the comprehensive scoring system.
+
+            We filter the dataset to only include rows where 'inspection_type' starts with "Administrative" and then identified the unique 'violation_description' values to understand the nature of violations in "Administrative" inspections.
+            '''
+        )
+        
+        st.code(
+            '''
+            # Filter for rows where 'inspection_type' starts with "Administrative"
+            administrative_rows = inspection_df[inspection_df['inspection_type'].str.startswith("Administrative")]
+
+            # Get a count of each unique 'violation_description' in these rows
+            violation_description_counts = administrative_rows['violation_description'].value_counts()
+
+            # Display the counts
+            violation_description_counts
+            '''
+        )
+        
+        
+
+        display_styled_code_block(cn.violation_description, max_height=300)
+        
+        st.markdown(
+            '''
+            The analysis of "Administrative" inspections revealed that these primarily involve non-food safety violations, such as missing posters, signage, or documentation, rather than critical food safety issues. Common violations in "Administrative" inspections include:
+
+            - Missing "Choking first aid" and "Alcohol and pregnancy" posters.
+            - Failure to post or conspicuously post current letter grades or Grade Pending cards.
+            - Providing certain items without customer request, such as plastic straws.
+
+            Given that "Administrative" inspections do not contribute to our food safety analysis and mainly involve non-critical violations, we made the decision to drop rows where the 'inspection_type' starts with "Administrative." This step helps streamline the dataset and focuses our analysis on relevant food safety factors.
+            '''
+        )
+        
+        st.code(
+            '''
+            # Drop rows where 'inspection_type' starts with "Administrative"
+            inspection_df = inspection_df[~inspection_df['inspection_type'].str.startswith("Administrative")]
+            null_counts_by_column = inspection_df.isnull().sum()
+            null_counts_by_column[null_counts_by_column > 0]
+            '''
+        )
+        
+        st.code(
+            '''
+            violation_code           438
+            violation_description    438
+            '''
+        )
+        
+        st.markdown(
+            '''
+            As a result, the null values in the 'score' column have been successfully addressed, leaving no NaNs in this column. Moving forward, we will further investigate the remaining null values in the 'violation_code' and 'violation_description' columns to gain insights into their presence, even though their frequency is relatively low.
+            '''
+        )
+        
+        st.code(
+            '''
+            # Group by 'inspection_type' and count null 'violation_code' entries
+            null_violation_count = inspection_df.groupby('inspection_type').apply(lambda x: x['violation_code'].isnull().sum())
+            null_violation_count
+            '''
+        )
+        
+        st.code(
+            '''
+            inspection_type
+            Cycle Inspection / Compliance Inspection             2
+            Cycle Inspection / Initial Inspection              256
+            Cycle Inspection / Re-inspection                    40
+            Cycle Inspection / Reopening Inspection             70
+            Cycle Inspection / Second Compliance Inspection      0
+            Inter-Agency Task Force / Initial Inspection        69
+            Inter-Agency Task Force / Re-inspection              1
+            dtype: int64
+            '''
+        )
+        
+        st.markdown(
+            '''
+            As observed, the presence of null values in the 'violation_code' and 'violation_description' columns varies depending on the inspection type. While this insight doesn't directly explain why these nulls exist, it's a useful observation. To further investigate the underlying reasons behind these null values, we can analyze the 'action' column, which may provide more context.
+            '''
+        )
+        
+        st.code(
+            '''
+            violation_code_null = inspection_df[inspection_df['violation_code'].isna()]
+            # Group by 'inspection_type' and count null 'violation_code' entries
+            null_violation_count = violation_code_null.groupby('action').apply(lambda x: x['violation_code'].isnull().sum())
+            null_violation_count
+            '''
+        )
+        
+        
+        st.code(
+            '''
+            action
+            Establishment re-opened by DOHMH.                               70
+            No violations were recorded at the time of this inspection.    364
+            Violations were cited in the following area(s).                  4
+            
+            Null count: 438
+            '''
+        )
+        
+        
+        st.markdown(
+            '''
+            Our analysis has revealed that a significant portion of the null values in the 'violation_code' and 'violation_description' columns are associated with inspections where no violations were recorded. To address this, we plan to replace these null values for the 'violation_code' column with "none" and for the 'violation_description' column with "No violations were recorded." 
+            '''
+        )
+        
+        st.code(
+            '''
+            # Identify rows where 'action' starts with the specified strings and 'violation_code' is null
+            condition = inspection_df['violation_code'].isna() & inspection_df['action'].str.startswith("No violations were recorded at the time of this inspection.")
+
+            # Update 'violation_code' and 'violation_description' for these rows
+            inspection_df.loc[condition, ['violation_code', 'violation_description']] = ['none', 'No violations were recorded']
+
+            violation_code_null = inspection_df[inspection_df['violation_code'].isna()]
+            # Group by 'inspection_type' and count null 'violation_code' entries
+            null_violation_count = violation_code_null.groupby('action').apply(lambda x: x['violation_code'].isnull().sum())
+            null_violation_count
+            '''
+        )
+        
+        st.code(
+            '''
+            action
+            Establishment re-opened by DOHMH.                  70
+            Violations were cited in the following area(s).     4
+            '''
+        )
+        
+        st.markdown(
+            '''
+            To gain further clarity and address the remaining null values in the 'violation_code' and 'violation_description' columns, we will focus on a subset of rows related to reopening inspections. Specifically, we will examine these rows to understand why some of them have null values in these columns.
+            '''
+        )
+        
+        st.code(
+            '''
+            # Filter rows where 'inspection_type' starts with "Administrative"
+            action_reopened = inspection_df[inspection_df['action'].str.startswith("Establishment re-opened by DOHMH")]
+            action_reopened.head(5)
+            '''
+        )
+        
+        display_dataframe('action_reopened.csv')
         
     with tab3:
         st.markdown('')
