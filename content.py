@@ -119,3 +119,8 @@ nyc_acquired_df='''
 |   50069583   |       PHO BEST      |   Queens   |     4235     |      MAIN ST       |    11355    | 9173618878 | Southeast Asian  |    2022-05-09T00:00:00.000   | Violations were cited in the following area(s). |     Critical      |    30     | 2023-12-01T06:00:08.000 | Cycle Inspection / Initial Inspection         | 40.754418104812 | -73.827881250044 |       407         |         20          |      085300     |  4573539  |  4051357502  |   QN22  |       02B        | Hot food item not held at or above 140º F. |   NaN    |       NaN      |
 
 '''
+
+prep_text='''
+For the NYC Health Inspection dataset, we undertook a thorough and thoughtful preparation process to ensure the data's integrity and relevance for our analysis. This process involved a deep dive into the dataset to understand and address the presence of null values, rather than simply removing them. We explored innovative methods to infer missing data from other related fields, particularly focusing on geographical information. Additionally, we closely analyzed inspection types to filter out irrelevant data and standardized key columns like phone numbers and dates for consistency. 
+'''
+
