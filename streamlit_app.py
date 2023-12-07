@@ -20,14 +20,24 @@ css = '''
         max-height: 900px;
         overflow: auto;
     }
+
+    .custom-code-container {
+        max-height: 300px;
+        overflow: auto;
+    }
 </style>
 '''
-def display_dataframe(file_name, title='', description=''):
+def display_dataframe(file_name, title='', description='', max_height=760):
     df = pd.read_csv(file_name)
     numRows = len(df)
-    dynamic_height = min(760, (numRows + 1) * 35 + 3)
-    st.write(f"#### {title}:\n")
-    st.markdown(description)
+    dynamic_height = min(max_height, (numRows + 1) * 35 + 3)
+    
+    if title:
+        st.write(f"## {title}")
+    
+    if description:
+        st.markdown(description)
+        
     st.dataframe(df, height=dynamic_height)
 
 st.markdown(css, unsafe_allow_html=True)
@@ -265,41 +275,55 @@ with st.expander("Prepare"):
             ''', 
         )
         
-        st.code(
-            '''
-            ['Administrative Miscellaneous / Compliance Inspection',
-            'Administrative Miscellaneous / Initial Inspection',
-            'Administrative Miscellaneous / Re-inspection',
-            'Administrative Miscellaneous / Reopening Inspection',
-            'Administrative Miscellaneous / Second Compliance Inspection',
-            'Calorie Posting / Compliance Inspection',
-            'Calorie Posting / Initial Inspection',
-            'Calorie Posting / Re-inspection',
-            'Cycle Inspection / Compliance Inspection',
-            'Cycle Inspection / Initial Inspection',
-            'Cycle Inspection / Re-inspection',
-            'Cycle Inspection / Reopening Inspection',
-            'Cycle Inspection / Second Compliance Inspection',
-            'Inter-Agency Task Force / Initial Inspection',
-            'Inter-Agency Task Force / Re-inspection',
-            'Pre-permit (Non-operational) / Compliance Inspection',
-            'Pre-permit (Non-operational) / Initial Inspection',
-            'Pre-permit (Non-operational) / Re-inspection',
-            'Pre-permit (Non-operational) / Second Compliance Inspection',
-            'Pre-permit (Operational) / Compliance Inspection',
-            'Pre-permit (Operational) / Initial Inspection',
-            'Pre-permit (Operational) / Re-inspection',
-            'Pre-permit (Operational) / Reopening Inspection',
-            'Pre-permit (Operational) / Second Compliance Inspection',
-            'Smoke-Free Air Act / Compliance Inspection',
-            'Smoke-Free Air Act / Initial Inspection',
-            'Smoke-Free Air Act / Limited Inspection',
-            'Smoke-Free Air Act / Re-inspection',
-            'Trans Fat / Compliance Inspection',
-            'Trans Fat / Initial Inspection',
-            'Trans Fat / Re-inspection']
-            ''', 
-        )
+        
+        
+        # Create a markdown block with custom HTML for the code
+        code_content = '''
+        ['Administrative Miscellaneous / Compliance Inspection',
+        'Administrative Miscellaneous / Initial Inspection',
+        'Administrative Miscellaneous / Re-inspection',
+        'Administrative Miscellaneous / Reopening Inspection',
+        'Administrative Miscellaneous / Second Compliance Inspection',
+        'Calorie Posting / Compliance Inspection',
+        'Calorie Posting / Initial Inspection',
+        'Calorie Posting / Re-inspection',
+        'Cycle Inspection / Compliance Inspection',
+        'Cycle Inspection / Initial Inspection',
+        'Cycle Inspection / Re-inspection',
+        'Cycle Inspection / Reopening Inspection',
+        'Cycle Inspection / Second Compliance Inspection',
+        'Inter-Agency Task Force / Initial Inspection',
+        'Inter-Agency Task Force / Re-inspection',
+        'Pre-permit (Non-operational) / Compliance Inspection',
+        'Pre-permit (Non-operational) / Initial Inspection',
+        'Pre-permit (Non-operational) / Re-inspection',
+        'Pre-permit (Non-operational) / Second Compliance Inspection',
+        'Pre-permit (Operational) / Compliance Inspection',
+        'Pre-permit (Operational) / Initial Inspection',
+        'Pre-permit (Operational) / Re-inspection',
+        'Pre-permit (Operational) / Reopening Inspection',
+        'Pre-permit (Operational) / Second Compliance Inspection',
+        'Smoke-Free Air Act / Compliance Inspection',
+        'Smoke-Free Air Act / Initial Inspection',
+        'Smoke-Free Air Act / Limited Inspection',
+        'Smoke-Free Air Act / Re-inspection',
+        'Trans Fat / Compliance Inspection',
+        'Trans Fat / Initial Inspection',
+        'Trans Fat / Re-inspection']
+        '''
+
+
+        # Create a markdown block with your code inside a code block
+        code_block = f'''
+        <div class="custom-code-container">
+
+        ```python
+        {code_content}
+        ```
+        </div>
+        '''
+        st.markdown(code_block, unsafe_allow_html=True)
+    
         
         st.markdown(
             '''
@@ -319,15 +343,20 @@ with st.expander("Prepare"):
             '''
         )
         
-        st.markdown(
+        st.code(
             '''
             155970
             '''
         )
         
+        st.markdown('Reevaluating Null Counts After BIN Column Cleanup')
+        
         st.code(
             '''
+            # Calculate the count of missing values in each column
             null_counts_by_column = inspection_df.isnull().sum()
+
+            # Filter and display columns with missing values
             null_counts_by_column[null_counts_by_column > 0]
             '''
         )
@@ -340,70 +369,30 @@ with st.expander("Prepare"):
             '''
         )
         
-    with tab3:
-        st.markdown('')
-        st.markdown(
+        st.markdown('''
+                    Eliminating these rows led to a modest decrease in null values, due to the overlap in missing data among these rows. However, a detailed analysis of a few outstanding violation codes is still required.
+                    
+                    Now, let's examine the history of a restaurant with a null value in the violation code to understand the reasons behind this occurrence.
+                    
+                    ''')
+        
+        st.code(
             '''
-            <details>
-            <summary>Click me</summary>
-            
-            ### Heading
+            # Step 1: Group by 'camis' and 'inspection_date' and check for nulls in 'violation_code'
+            grouped = inspection_df.groupby(['camis', 'inspection_date'])
+            groups_with_nulls = grouped.apply(lambda x: x['score'].isna().any())
 
-            </details>
-            ''',
-            unsafe_allow_html=True
+            # Step 2: Filter the DataFrame to include only those groups
+            filtered_df = inspection_df[inspection_df.set_index(['camis', 'inspection_date']).index.isin(groups_with_nulls[groups_with_nulls].index)].reset_index(drop=True)
+
+            # Now, 'filtered_df' contains only the groups where there are null values in 'violation_code'
+            filtered_df.sort_values(by='camis').head(3)
+            '''
         )
         
-        # Define custom CSS for the specific markdown cell
-        custom_css = """
-        <style>
-        .custom-markdown-cell {
-            max-height: 200px; /* Adjust the height as needed */
-            overflow-y: auto; /* Add a scrollbar if content exceeds the max height */
-        }
-        </style>
-        """
+        display_dataframe('inspections_camisg.csv')
+        
+    with tab3:
+        st.markdown('')
 
-        # Inject the custom CSS
-        st.markdown(custom_css, unsafe_allow_html=True)
 
-        # Display the specific Markdown cell with custom ID
-        st.markdown(
-            '''
-            <div id="custom-markdown-cell">
-            ['Administrative Miscellaneous / Compliance Inspection',
-            'Administrative Miscellaneous / Initial Inspection',
-            'Administrative Miscellaneous / Re-inspection',
-            'Administrative Miscellaneous / Reopening Inspection',
-            'Administrative Miscellaneous / Second Compliance Inspection',
-            'Calorie Posting / Compliance Inspection',
-            'Calorie Posting / Initial Inspection',
-            'Calorie Posting / Re-inspection',
-            'Cycle Inspection / Compliance Inspection',
-            'Cycle Inspection / Initial Inspection',
-            'Cycle Inspection / Re-inspection',
-            'Cycle Inspection / Reopening Inspection',
-            'Cycle Inspection / Second Compliance Inspection',
-            'Inter-Agency Task Force / Initial Inspection',
-            'Inter-Agency Task Force / Re-inspection',
-            'Pre-permit (Non-operational) / Compliance Inspection',
-            'Pre-permit (Non-operational) / Initial Inspection',
-            'Pre-permit (Non-operational) / Re-inspection',
-            'Pre-permit (Non-operational) / Second Compliance Inspection',
-            'Pre-permit (Operational) / Compliance Inspection',
-            'Pre-permit (Operational) / Initial Inspection',
-            'Pre-permit (Operational) / Re-inspection',
-            'Pre-permit (Operational) / Reopening Inspection',
-            'Pre-permit (Operational) / Second Compliance Inspection',
-            'Smoke-Free Air Act / Compliance Inspection',
-            'Smoke-Free Air Act / Initial Inspection',
-            'Smoke-Free Air Act / Limited Inspection',
-            'Smoke-Free Air Act / Re-inspection',
-            'Trans Fat / Compliance Inspection',
-            'Trans Fat / Initial Inspection',
-            'Trans Fat / Re-inspection']
-            </div>
-            ''', 
-            unsafe_allow_html=True)
-
-# Add additional components as needed
