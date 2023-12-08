@@ -1,0 +1,15 @@
+Column,Null Count,Zero Count,Zero Count (str),Data Types
+building,289,0,430,object
+zipcode,2642,0,0,float64
+phone,6,0,0,object
+score,7572,9813,0,float64
+latitude,246,2642,0,float64
+longitude,246,2642,0,float64
+community_board,3153,0,0,float64
+council_district,3157,0,0,float64
+census_tract,3157,0,0,float64
+bin,4144,0,0,float64
+bbl,511,0,0,float64
+nta,3153,0,0,object
+violation_code,1157,0,0,object
+violation_description,1157,0,0,object
