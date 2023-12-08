@@ -121,7 +121,7 @@ nyc_acquired_df='''
 '''
 
 prep_text='''
-For the NYC Health Inspection dataset, we undertook a thorough and thoughtful preparation process to ensure the data's integrity and relevance for our analysis. This process involved a deep dive into the dataset to understand and address the presence of null values, rather than simply removing them. We explored innovative methods to infer missing data from other related fields, particularly focusing on geographical information. Additionally, we closely analyzed inspection types to filter out irrelevant data and standardized key columns like phone numbers and dates for consistency. 
+For the NYC Health Inspection dataset, we undertook a thorough and thoughtful preparation process to ensure the data's integrity and relevance for our analysis. This process involved a deep dive into the dataset to understand and address the presence of null values, rather than simply removing them. We explored innovative methods to infer missing data from other related fields, particularly focusing on zoning information. Additionally, we closely analyzed inspection types to filter out irrelevant data and standardized key columns like phone numbers and dates for consistency. 
 '''
 
 inspection_type = '''

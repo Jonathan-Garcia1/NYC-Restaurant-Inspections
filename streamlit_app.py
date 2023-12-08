@@ -43,7 +43,7 @@ css = '''
     }
 </style>
 '''
-def display_dataframe(file_name, title='', description='', max_height=760):
+def display_dataframe(file_name, title='', description='', max_height=720):
     df = pd.read_csv(file_name)
     numRows = len(df)
     dynamic_height = min(max_height, (numRows + 1) * 35 + 3)
@@ -98,6 +98,8 @@ def v_spacer(height, sb=False) -> None:
 # Project Title, Description, and Objectives
 st.title("New York Health Inspection Prediction")
 
+st.image('Title.jpg')
+
 st.header("Project Description")
 st.write("In today’s culinary landscape, making informed decisions about dining out is challenging with the multitude of options available. Our project leverages New York Open data to integrate health inspection results and restaurant reviews from Google Maps. By analyzing this information, we predict restaurant health inspection outcomes and report sentiment based on posted reviews, offering valuable insights for safety and informed choices. Whether you’re a foodie, a concerned parent, or a health-conscious individual, our platform assists in making better decisions about where to dine in New York City.")
 
@@ -142,39 +144,41 @@ with st.expander("Acquire"):
 
 # Second Accordion: Prepare
 with st.expander("Prepare"):
-    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Dealing with Nulls", "tab3", "tab4"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Overview", "Nulls: Zoning", "Nulls: By Inspection Type", "Nulls: By Action", "Remaining Nulls & Zeros", "Data Types"])
 
     with tab1:
         
         st.markdown('#### Preparation Intro')
         st.markdown(cn.prep_text)
         display_dataframe('inspections_df_status.csv', '#### Dataset Overview', 'The table below displays all columns in the dataset, including their respective Null and Zero Counts and data types.')
-        display_dataframe('inspections_prepare.csv', '#### Columns with Nulls and Zeros', 'In the following table, we have applied a filter to focus solely on columns with Nulls or Zeros. These columns will be the primary focus of our cleaning and preparation efforts in this section.')
-
+        
+        v_spacer(height=2, sb=False)
+        
+        st.markdown('#### Grade & Grade Date')
+        st.markdown(
+            '''Let's begin the preparation section by addressing the columns with the highest number of null values, which are Grade and Grade Date.
+            According to the Health Department, all inspections generate a score, but not all result in a letter grade. Letter grades are assigned only to Cycle initial-inspections and Cycle re-inspections. You can find more information on how these grades are determined in the [How We Score and Grade](https://www.nyc.gov/assets/doh/downloads/pdf/rii/restaurant-grading-faq.pdf) document.
+            '''
+        )
+        st.code(
+            '''
+            # Dropping the 'grade' and 'grade_date' columns
+            inspection_df = inspection_df.drop(['grade', 'grade_date'], axis=1)
+            '''
+        )
+        
+        
     with tab2:
         
         with st.container(border=False):
             
             st.markdown('''
-                        ### Dealing with Nulls
-                        In this section we will focus on dealing with all the nulls in the dataset. 
+                        ### Dealing with Nulls in the Zoning Columns
+                        In this section you will see how we attempted to infer zoning data using the known hierarchy of zoning labels in NYC.  
                         # ''')
             display_dataframe('inspections_df_isna.csv', '##### Current Null Count', max_height= 400)
             
-            v_spacer(height=2, sb=False)
-            
-            st.markdown('#### Grade & Grade Date')
-            st.markdown(
-                '''Let's begin the preparation section by addressing the columns with the highest number of null values, which are Grade and Grade Date.
-                According to the Health Department, all inspections generate a score, but not all result in a letter grade. Letter grades are assigned only to Cycle initial-inspections and Cycle re-inspections. You can find more information on how these grades are determined in the [How We Score and Grade](https://www.nyc.gov/assets/doh/downloads/pdf/rii/restaurant-grading-faq.pdf) document.
-                '''
-            )
-            st.code(
-                '''
-                # Dropping the 'grade' and 'grade_date' columns
-                inspection_df = inspection_df.drop(['grade', 'grade_date'], axis=1)
-                '''
-            )
+
             
             v_spacer(height=2, sb=False)
             
@@ -343,6 +347,13 @@ with st.expander("Prepare"):
             )
             
             v_spacer(height=2, sb=False)
+            
+        with tab3:
+            st.markdown('''
+                        ### Dealing with Nulls by Inspection Type
+                        
+                        In this section you will see how we dealt with the nulls in columns related to inspection scores by dropping rows of inspection types that were not relevant to this project. 
+                        ''')
             
             st.markdown(
                 '''#### Identifying Relevant Inspection Types
@@ -555,6 +566,13 @@ with st.expander("Prepare"):
                 '''
             )
             
+        with tab4:
+            st.markdown('''
+            ### Dealing with Nulls by Inspection Action
+            
+            In this section you will see how we dealt with the nulls in columns related to violation codes and descriptions by identifying data that could be inferred using the a combination of the Action and inspection type columns.
+            ''')
+            
             v_spacer(height=2, sb=False)
             
             st.markdown('#### Investigating remaining violation code nulls')
@@ -727,13 +745,20 @@ with st.expander("Prepare"):
             
             v_spacer(height=2, sb=False)
             
+
+            
+        with tab5:
+            st.markdown('''
+            ### Dealing Remaining Nulls and Zeros
+            
+            There are only a couple of nulls and zeros that need to be handled.
+            ''')
+
             st.markdown(
                 '''
-                    ### Analyzing Phone
+                ### Phone
 
-                    Since only numerical values are left, we can fill these remaining nulls with a common placeholder, such as '0000000000,' to maintain data integrity:
-
-                    only numbers are left, we could simply fill na with 0000000000
+                There are only a few rows with nulls in this column. We can fill these remaining nulls with a common placeholder, such as '0000000000,':
                 '''
             )
             
@@ -760,14 +785,238 @@ with st.expander("Prepare"):
                 '''
             )
             
-        
-        
-        
-        
-        
-        
-        
-    with tab3:
-        st.markdown('')
+            st.code(
+            '''    
+            pd.DataFrame({
+            'Numeric_Zero_Count': (inspection_df == 0).sum(),
+            'String_Zero_Count': (inspection_df == '0').sum(),
+            'Null_Count': (inspection_df.isna().sum()).sum()
+            })
+            '''
+            )
+            
+            display_dataframe('null_zero_counts.csv', '##### Current Null & Zero Count', max_height= 200)
+            
+            
+            st.markdown(
+            '''
+            #### Dealing with 0s
 
+            ##### Building
 
+            For the 'building' column, it appears to have some 0 values, but there's not much we can do about that, so we will leave it as is.
+
+            ##### Score
+            Regarding the 'score' column, we can infer that a score of 0 indicates no violations.
+            '''
+            )
+            
+        with tab6:
+            
+            st.markdown('''
+            ### Dealing with Data Types'
+            
+            Here we will asses which data types need to be changed, and address formatting. 
+            ''')
+            
+            v_spacer(2,False)
+            
+            st.markdown('''
+            #### Initial Assessment
+            
+            Lets begin by taking an assessment of our dataframe. 
+            ''')
+            
+            st.code('''
+            null_zero_counts = pd.DataFrame({
+                'Numeric_Zero_Count': (inspection_df == 0).sum(),
+                'String_Zero_Count': (inspection_df == '0').sum(),
+                'Null_Count': (inspection_df.isna().sum()).sum(),
+                'Blank Count': (inspection_df == '').sum(),
+                'Space Count': (inspection_df == ' ').sum(),
+                'Data Types': inspection_df.dtypes
+            })
+
+            null_zero_counts
+                    ''')
+            
+            display_dataframe('null_zero_counts.csv', '##### Current Null & Zero Count')
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown('''
+            For the most part, the dataframe is free of zeros, nulls and blanks. Most of datatypes are assigned properly. 
+            
+            We will be reviewing:
+            
+            Zeros:
+            - Score
+            - Building
+            
+            Floats:
+            - 'zipcode', 
+            - 'score', 
+            - 'community_board', 
+            - 'council_district', 
+            - 'census_tract', 
+            - 'bin', 
+            - 'bbl'
+            
+            Formatting:
+            - Phone
+            - Inspection Date
+            ''')
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown(
+            '''
+            ### Score Column
+
+            Prepare the 'score' column for numerical analysis, the following action has been taken.
+            '''
+            )
+            
+            st.code(
+            '''    
+            inspection_df['score'] = inspection_df['score'].astype(int)
+            '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown(
+            '''
+            #### Building Column
+            First, lets address the building column.
+            '''
+            )
+            
+            st.code(
+            '''    
+            inspection_df['building'].str.isalpha().any()
+            '''
+            )
+            
+            st.code(
+            '''    
+            True
+            ''')
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown(
+            '''
+            ### Float data type columns
+
+            The following columns should exclusively contain whole numbers. Currently, they are in float type. To ensure their integrity:
+
+            1. Verify if they consist of whole numbers.
+            2. Convert them to integers to confirm the absence of special characters.
+            3. Convert them back to strings, as these columns are categorical features.
+            '''
+            )
+            
+            st.code(
+            '''    
+            columns_to_check = ['zipcode', 'score', 'community_board', 'council_district', 'census_tract', 'bin', 'bbl']
+
+            for column in columns_to_check:
+                is_integer = (inspection_df[column] % 1 == 0).all()
+                print(f"{column} Column: {is_integer}")
+            '''
+            )
+            
+            st.code(
+            '''    
+            zip code Column: True
+            score Column: True
+            community_board Column: True
+            council_district Column: True
+            census_tract Column: True
+            bin Column: True
+            bbl Column: True    
+            '''
+            )
+            
+            st.code(
+            '''    
+            for column in columns_to_check:
+                inspection_df[column] = inspection_df[column].astype(int)
+                inspection_df[column] = inspection_df[column].astype(str)
+            '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown(
+            '''
+            ### Phone Column
+
+            Lets work on the 'phone' column, we will perform the following steps:
+
+            1. Remove all non-numerical characters from the 'phone' column.
+            2. Replace missing or empty values with '1000000000' to avoid having all zeros.
+            '''
+            )
+            
+            st.code(
+            '''    
+            # Use regex to extract digits from the "phone" column
+            inspection_df['phone'] = inspection_df['phone'].str.replace(r'\D', '', regex=True)
+            # Remove blank or 0s placeholder with '1000000000'.
+            inspection_df['phone'] = inspection_df['phone'].str.strip().replace(['', '0000000000'], '1000000000')
+            '''
+            )
+            
+            st.markdown(
+            '''
+            ## Inspection Date Column
+
+            To standardize the 'inspection_date' column, we will follow these steps:
+
+            1. Begin by printing the 'inspection_date' from the first row of the DataFrame to verify the initial format.
+            2. Next, convert the 'inspection_date' column to datetime format and format it to display only the date in 'YYYY-MM-DD' format.
+            3. Finally, print the 'inspection_date' from the first row of the DataFrame again to confirm that it has been standardized to 'YYYY-MM-DD'.
+            '''
+            )
+            
+            st.code(
+            '''    
+            # Print the 'inspection_date' from the first row of the DataFrame
+            inspection_df.loc[0, 'inspection_date']
+            '''
+            )
+            
+            st.code(
+            '''    
+            '2021-09-12T00:00:00.000'
+            '''
+            )
+            
+            st.code(
+            '''    
+            # Convert the 'inspection_date' column to datetime and format it to display only the date (YYYY-MM-DD)
+            inspection_df['inspection_date'] = pd.to_datetime(inspection_df['inspection_date']).dt.strftime('%Y-%m-%d')
+            
+            # Print the 'inspection_date' from the first row of the DataFrame
+            inspection_df.loc[0, 'inspection_date']
+            '''
+            )
+            
+            st.code(
+            '''    
+            '2021-09-12'
+            '''
+            )
+            
+            st.markdown(
+            '''
+            The DataFrame 'inspection_df' has been thoroughly checked and cleaned, resulting in the following characteristics:
+
+            - No null values exist in any of the columns.
+            - The data types of the columns are appropriate.
+
+            The data is now ready for further analysis and exploration. If you have any additional tasks or questions related to this DataFrame or any other topic, please feel free to ask.
+            '''
+            )
