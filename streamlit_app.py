@@ -1020,3 +1020,4 @@ with st.expander("Prepare"):
             The data is now ready for further analysis and exploration. If you have any additional tasks or questions related to this DataFrame or any other topic, please feel free to ask.
             '''
             )
+#the end
