@@ -26,6 +26,21 @@ css = '''
         max-height: 300px;
         overflow: auto;
     }
+    
+    div[data-baseweb="tab-panel"][id^="tabs-bui4-tabpanel-"][class^="st-"] {
+        max-height: 800px; /* Adjust the max height as needed */
+        overflow-y: auto;
+        overflow-x: hidden; 
+        
+    }
+    /* Style the scrollbar corner to be transparent */
+    div[data-baseweb="tab-panel"][id^="tabs-bui4-tabpanel-"][class^="st-"]::-webkit-scrollbar-corner {
+        background-color: transparent;
+    }
+    
+    .st-emotion-cache-q8sbsg p {
+        font-size: x-large;
+    }
 </style>
 '''
 def display_dataframe(file_name, title='', description='', max_height=760):
@@ -34,7 +49,7 @@ def display_dataframe(file_name, title='', description='', max_height=760):
     dynamic_height = min(max_height, (numRows + 1) * 35 + 3)
     
     if title:
-        st.write(f"## {title}")
+        st.write(title)
     
     if description:
         st.markdown(description)
@@ -71,6 +86,15 @@ def display_styled_code_block(code_content, max_height=300):
     st.markdown(css_styled_code, unsafe_allow_html=True)
     st.markdown(code_block, unsafe_allow_html=True)
     
+    
+def v_spacer(height, sb=False) -> None:
+    for _ in range(height):
+        if sb:
+            st.sidebar.write('\n')
+        else:
+            st.write('\n')
+
+
 # Project Title, Description, and Objectives
 st.title("New York Health Inspection Prediction")
 
@@ -124,448 +148,624 @@ with st.expander("Prepare"):
         
         st.markdown('#### Preparation Intro')
         st.markdown(cn.prep_text)
-        display_dataframe('inspections_df_status.csv', 'Dataset Overview', 'The table below displays all columns in the dataset, including their respective Null and Zero Counts and data types.')
-        display_dataframe('inspections_prepare.csv', 'Columns with Nulls and Zeros', 'In the following table, we have applied a filter to focus solely on columns with Nulls or Zeros. These columns will be the primary focus of our cleaning and preparation efforts in this section.')
+        display_dataframe('inspections_df_status.csv', '#### Dataset Overview', 'The table below displays all columns in the dataset, including their respective Null and Zero Counts and data types.')
+        display_dataframe('inspections_prepare.csv', '#### Columns with Nulls and Zeros', 'In the following table, we have applied a filter to focus solely on columns with Nulls or Zeros. These columns will be the primary focus of our cleaning and preparation efforts in this section.')
 
     with tab2:
-        st.markdown('#### Dealing with Nulls')
-        display_dataframe('inspections_df_isna.csv', 'Current Null Count')
         
-        st.markdown('#### Grade & Grade Date')
-        st.markdown(
-            '''Let's begin the preparation section by addressing the columns with the highest number of null values, which are Grade and Grade Date.
-            According to the Health Department, all inspections generate a score, but not all result in a letter grade. Letter grades are assigned only to Cycle initial-inspections and Cycle re-inspections. You can find more information on how these grades are determined in the [How We Score and Grade](https://www.nyc.gov/assets/doh/downloads/pdf/rii/restaurant-grading-faq.pdf) document.
-            '''
-        )
-        st.code(
-            '''
-            # Dropping the 'grade' and 'grade_date' columns
-            inspection_df = inspection_df.drop(['grade', 'grade_date'], axis=1)
-            '''
-        )
-        
-        st.markdown(
-            '''
-            <br>
+        with st.container(border=False):
             
-            #### Inferring Missing Values
-
-            Our next step is to strategize how to address these missing values by leveraging available data in other columns. The proposed hierarchy for inference is as follows:
-
-            lat&long < building < bin < bbl < nta, zipcode* < community board < council district < census tract
-
-            Given the relatively low count of missing values in the BBL column, it appears to be a promising candidate for inferring related data such as NTA (Neighborhood Tabulation Area), Community Board, Council District, and Census Tract.
-
-            Let's examine the first few unique values in the BBL column to understand its content
-            ''',
-            unsafe_allow_html=True
-        )
-        st.code(
-            '''
-            # Let's take a look at the first few unique values in the BBL column
-            sorted(inspection_df.bbl.unique())[:10]
-            '''
-        )
-        st.markdown(
-            '''
-            ```python
-            [1.0,
-            2.0,
-            3.0,
-            4.0,
-            5.0,
-            1000010010.0,
-            1000020001.0,
-            1000047501.0,
-            1000070028.0,
-            1000070031.0]
-            ```
-            ''', 
-        )
-
-        
-        st.markdown(
-            '''
-            The initial examination of the BBL column shows the presence of non-standard values such as 1.0, 2.0, 3.0, 4.0, etc., which do not conform to the expected 10-digit format.
-
-            Now, let's find out the count of these non-standard values:
-            '''
-        )
-        
-        st.code(
-            '''
-            # Define non-standard BBL values
-            bbl_values = [np.nan, 1.0, 2.0, 3.0, 4.0, 5.0]
-
-            # Calculate the count of these non-standard values in the BBL column
-            inspection_df['bbl'].isin(bbl_values).sum()
-            '''
-        )
-        
-        st.markdown(
-            '''
-            The count of non-standard BBL values is found to be relatively consistent with the number of NaN values in the BIN column, indicating a pattern of missing values across these key columns.
-
-            - census_tract               3157
-            - bin                        4144
-            - bbl                        4144
-            - nta                        3153
-            - community_board            3153
-            - council_district           3157
-
-            We are unable to rely on bbl make inferences because the features were missing across the same. We must abandon the hierarchy inference plan. To proceed, we drop rows with NaN values in the BIN column.
-            '''
-        )
-
-        st.code(
-            '''
-            # Dropping rows with null values in the 'bin' column
-            inspection_df = inspection_df.dropna(subset=['bin'])
-            '''
-        )
-        st.markdown('Reevaluating Null Counts After BIN Column Cleanup')
-        
-        st.code(
-            '''
-            # Calculate the count of missing values in each column
-            null_counts_by_column = inspection_df.isnull().sum()
-
-            # Filter and display columns with missing values
-            null_counts_by_column[null_counts_by_column > 0]
-            '''
-        )
-        
-        st.code(
-            '''
-            zipcode                    30
-            phone                       6
-            score                    7440
-            community_board            30
-            council_district           34
-            census_tract               34
-            nta                        30
-            violation_code           1076
-            violation_description    1076
+            st.markdown('''
+                        ### Dealing with Nulls
+                        In this section we will focus on dealing with all the nulls in the dataset. 
+                        # ''')
+            display_dataframe('inspections_df_isna.csv', '##### Current Null Count', max_height= 400)
             
-            ''', 
-        )
-
-        st.markdown(
-            '''
-            As expected, the remaining NaNs are mostly related or in common with the initial set. 
-
-            #### Handling Remaining Zoning Nulls
-
-            For the small number of remaining NaNs (e.g., 30 in ZIP code), we can safely drop them due to their limited impact on the dataset. I chose to drop 'council_district' to see if this also got rid of the other NaNs.
-            '''
-        )
-        
-        st.code(
-            '''
-            # Dropping rows with null values in the 'council_district' column
-            inspection_df = inspection_df.dropna(subset=['council_district'])
-
-            # Reassessing the null counts in the dataset
-            null_counts_by_column = inspection_df.isnull().sum()
-            null_counts_by_column[null_counts_by_column > 0]
-            ''', 
-        )
-
-        st.code(
-            '''
-            phone                       6
-            score                    7438
-            violation_code           1076
-            violation_description    1076
+            v_spacer(height=2, sb=False)
             
-            ''', 
-        )
-        
-
-        st.markdown(
-            '''
-            As expected, dropping council_district also removed the other zoning features with nulls.
-
-            #### Identifying Relevant Inspection Types
-
-            Before proceeding with the score nulls, let's identify and focus on inspection types related to food safety.
-            '''
-        )
-        
-        st.code(
-            '''
-            # Assuming 'inspection_df' is your DataFrame
-            unique_inspection_types = inspection_df['inspection_type'].unique()
-
-            # Convert the numpy array to a list and then sort it
-            sorted_inspection_types = sorted(unique_inspection_types.tolist())
-            sorted_inspection_types
-            ''', 
-        )
-        
-        
-        
-        # Create a markdown block with custom HTML for the code
-        display_styled_code_block(cn.inspection_type, max_height=300)
-    
-        
-        st.markdown(
-            '''
-            We will exclude types such as "Calorie Posting," "Pre-permit," "Smoke-Free Air Act," and "Trans Fat," as they do not directly pertain to food safety
-            '''
-        )
-        
-        
-        st.code(
-            '''
-            # List of inspection types to be removed
-            remove_types = ["Calorie Posting", "Pre-permit", "Smoke-Free Air Act", "Trans Fat"]
-
-            # Filter the DataFrame in a single step
-            inspection_df = inspection_df[~inspection_df['inspection_type'].str.startswith(tuple(remove_types))]
-            len(inspection_df)
-            '''
-        )
-        
-        st.code(
-            '''
-            155970
-            '''
-        )
-        
-        st.markdown('Reevaluating Null Counts After BIN Column Cleanup')
-        
-        st.code(
-            '''
-            # Calculate the count of missing values in each column
-            null_counts_by_column = inspection_df.isnull().sum()
-
-            # Filter and display columns with missing values
-            null_counts_by_column[null_counts_by_column > 0]
-            '''
-        )
-        
-        st.code(
-            '''
-            score                    6024
-            violation_code            797
-            violation_description     797
-            '''
-        )
-        
-        st.markdown('''
-                    Eliminating these rows led to a modest decrease in null values, due to the overlap in missing data among these rows. However, a detailed analysis of a few outstanding violation codes is still required.
-                    
-                    Now, let's examine the history of a restaurant with a null value in the violation code to understand the reasons behind this occurrence.
-                    
-                    ''')
-        
-        st.code(
-            '''
-            # Step 1: Group by 'camis' and 'inspection_date' and check for nulls in 'violation_code'
-            grouped = inspection_df.groupby(['camis', 'inspection_date'])
-            groups_with_nulls = grouped.apply(lambda x: x['score'].isna().any())
-
-            # Step 2: Filter the DataFrame to include only those groups
-            filtered_df = inspection_df[inspection_df.set_index(['camis', 'inspection_date']).index.isin(groups_with_nulls[groups_with_nulls].index)].reset_index(drop=True)
-
-            # Now, 'filtered_df' contains only the groups where there are null values in 'violation_code'
-            filtered_df.sort_values(by='camis').head(3)
-            '''
-        )
-        
-        display_dataframe('inspections_camisg.csv')
-        
-        st.markdown(
-            '''
-            The data format clearly shows that individual violations from an inspection are recorded on separate rows. However, it's unusual to observe different types of inspections, such as 'Administrative Miscellaneous', occurring concurrently within a single visit. Notably, rows categorized under 'Administrative Miscellaneous' frequently present missing data in the 'violation_code' field. The next step in our analysis involves determining the frequency of NaN values within the 'Administrative Miscellaneous' inspection category
-            '''
-        )
-        
-        st.code(
-            '''
-            # Group by 'inspection_type' and count null 'violation_code' entries
-            null_score_count = inspection_df.groupby('inspection_type').apply(lambda x: x['score'].isnull().sum())
-
-            # The result is a Series where the index is 'inspection_type' and the values are the counts of null 'violation_code'
-            print(null_score_count)
-
-            '''
-        )
-        
-        st.code(
-            '''
-            inspection_type
-            Administrative Miscellaneous / Compliance Inspection             99
-            Administrative Miscellaneous / Initial Inspection              4899
-            Administrative Miscellaneous / Re-inspection                    975
-            Administrative Miscellaneous / Reopening Inspection              43
-            Administrative Miscellaneous / Second Compliance Inspection       8
-            Cycle Inspection / Compliance Inspection                          0
-            Cycle Inspection / Initial Inspection                             0
-            Cycle Inspection / Re-inspection                                  0
-            Cycle Inspection / Reopening Inspection                           0
-            Cycle Inspection / Second Compliance Inspection                   0
-            Inter-Agency Task Force / Initial Inspection                      0
-            Inter-Agency Task Force / Re-inspection                           0
-            '''
-        )
-        
-        st.markdown(
-            '''
-            The analysis reveals that all the missing 'violation_code' entries are tied to various "Administrative" inspection types. This pattern suggests that "Administrative" inspections might be documenting a distinct category of violations, particularly given the occurrence of both "Administrative" and "Cycle" inspections within the same visit. This finding indicates a potential strategy to either deduce the score for these cases or consider the removal of "Administrative" inspection types from our dataset.
-
-            To proceed effectively, it's important to closely examine the specific types of violations recorded under "Administrative" inspections. Understanding the nuances of these violations will assist in determining their relevance to our overall data analysis and their impact on the comprehensive scoring system.
-
-            We filter the dataset to only include rows where 'inspection_type' starts with "Administrative" and then identified the unique 'violation_description' values to understand the nature of violations in "Administrative" inspections.
-            '''
-        )
-        
-        st.code(
-            '''
-            # Filter for rows where 'inspection_type' starts with "Administrative"
-            administrative_rows = inspection_df[inspection_df['inspection_type'].str.startswith("Administrative")]
-
-            # Get a count of each unique 'violation_description' in these rows
-            violation_description_counts = administrative_rows['violation_description'].value_counts()
-
-            # Display the counts
-            violation_description_counts
-            '''
-        )
-        
-        
-
-        display_styled_code_block(cn.violation_description, max_height=300)
-        
-        st.markdown(
-            '''
-            The analysis of "Administrative" inspections revealed that these primarily involve non-food safety violations, such as missing posters, signage, or documentation, rather than critical food safety issues. Common violations in "Administrative" inspections include:
-
-            - Missing "Choking first aid" and "Alcohol and pregnancy" posters.
-            - Failure to post or conspicuously post current letter grades or Grade Pending cards.
-            - Providing certain items without customer request, such as plastic straws.
-
-            Given that "Administrative" inspections do not contribute to our food safety analysis and mainly involve non-critical violations, we made the decision to drop rows where the 'inspection_type' starts with "Administrative." This step helps streamline the dataset and focuses our analysis on relevant food safety factors.
-            '''
-        )
-        
-        st.code(
-            '''
-            # Drop rows where 'inspection_type' starts with "Administrative"
-            inspection_df = inspection_df[~inspection_df['inspection_type'].str.startswith("Administrative")]
-            null_counts_by_column = inspection_df.isnull().sum()
-            null_counts_by_column[null_counts_by_column > 0]
-            '''
-        )
-        
-        st.code(
-            '''
-            violation_code           438
-            violation_description    438
-            '''
-        )
-        
-        st.markdown(
-            '''
-            As a result, the null values in the 'score' column have been successfully addressed, leaving no NaNs in this column. Moving forward, we will further investigate the remaining null values in the 'violation_code' and 'violation_description' columns to gain insights into their presence, even though their frequency is relatively low.
-            '''
-        )
-        
-        st.code(
-            '''
-            # Group by 'inspection_type' and count null 'violation_code' entries
-            null_violation_count = inspection_df.groupby('inspection_type').apply(lambda x: x['violation_code'].isnull().sum())
-            null_violation_count
-            '''
-        )
-        
-        st.code(
-            '''
-            inspection_type
-            Cycle Inspection / Compliance Inspection             2
-            Cycle Inspection / Initial Inspection              256
-            Cycle Inspection / Re-inspection                    40
-            Cycle Inspection / Reopening Inspection             70
-            Cycle Inspection / Second Compliance Inspection      0
-            Inter-Agency Task Force / Initial Inspection        69
-            Inter-Agency Task Force / Re-inspection              1
-            dtype: int64
-            '''
-        )
-        
-        st.markdown(
-            '''
-            As observed, the presence of null values in the 'violation_code' and 'violation_description' columns varies depending on the inspection type. While this insight doesn't directly explain why these nulls exist, it's a useful observation. To further investigate the underlying reasons behind these null values, we can analyze the 'action' column, which may provide more context.
-            '''
-        )
-        
-        st.code(
-            '''
-            violation_code_null = inspection_df[inspection_df['violation_code'].isna()]
-            # Group by 'inspection_type' and count null 'violation_code' entries
-            null_violation_count = violation_code_null.groupby('action').apply(lambda x: x['violation_code'].isnull().sum())
-            null_violation_count
-            '''
-        )
-        
-        
-        st.code(
-            '''
-            action
-            Establishment re-opened by DOHMH.                               70
-            No violations were recorded at the time of this inspection.    364
-            Violations were cited in the following area(s).                  4
+            st.markdown('#### Grade & Grade Date')
+            st.markdown(
+                '''Let's begin the preparation section by addressing the columns with the highest number of null values, which are Grade and Grade Date.
+                According to the Health Department, all inspections generate a score, but not all result in a letter grade. Letter grades are assigned only to Cycle initial-inspections and Cycle re-inspections. You can find more information on how these grades are determined in the [How We Score and Grade](https://www.nyc.gov/assets/doh/downloads/pdf/rii/restaurant-grading-faq.pdf) document.
+                '''
+            )
+            st.code(
+                '''
+                # Dropping the 'grade' and 'grade_date' columns
+                inspection_df = inspection_df.drop(['grade', 'grade_date'], axis=1)
+                '''
+            )
             
-            Null count: 438
-            '''
-        )
-        
-        
-        st.markdown(
-            '''
-            Our analysis has revealed that a significant portion of the null values in the 'violation_code' and 'violation_description' columns are associated with inspections where no violations were recorded. To address this, we plan to replace these null values for the 'violation_code' column with "none" and for the 'violation_description' column with "No violations were recorded." 
-            '''
-        )
-        
-        st.code(
-            '''
-            # Identify rows where 'action' starts with the specified strings and 'violation_code' is null
-            condition = inspection_df['violation_code'].isna() & inspection_df['action'].str.startswith("No violations were recorded at the time of this inspection.")
+            v_spacer(height=2, sb=False)
+            
+            st.markdown(
+                '''
+                #### Inferring Missing Values
 
-            # Update 'violation_code' and 'violation_description' for these rows
-            inspection_df.loc[condition, ['violation_code', 'violation_description']] = ['none', 'No violations were recorded']
+                Our next step is to strategize how to address these missing values by leveraging available data in other columns. The proposed hierarchy for inference is as follows:
 
-            violation_code_null = inspection_df[inspection_df['violation_code'].isna()]
-            # Group by 'inspection_type' and count null 'violation_code' entries
-            null_violation_count = violation_code_null.groupby('action').apply(lambda x: x['violation_code'].isnull().sum())
-            null_violation_count
-            '''
-        )
+                lat&long < building < bin < bbl < nta, zipcode* < community board < council district < census tract
+
+                Given the relatively low count of missing values in the BBL column, it appears to be a promising candidate for inferring related data such as NTA (Neighborhood Tabulation Area), Community Board, Council District, and Census Tract.
+
+                Let's examine the first few unique values in the BBL column to understand its content
+                ''',
+                unsafe_allow_html=True
+            )
+            st.code(
+                '''
+                # Let's take a look at the first few unique values in the BBL column
+                sorted(inspection_df.bbl.unique())[:10]
+                '''
+            )
+            st.markdown(
+                '''
+                ```python
+                [1.0,
+                2.0,
+                3.0,
+                4.0,
+                5.0,
+                1000010010.0,
+                1000020001.0,
+                1000047501.0,
+                1000070028.0,
+                1000070031.0]
+                ```
+                ''', 
+            )
+
+            
+            st.markdown(
+                '''
+                The BBL column shows the presence of non-standard values, which do not conform to the expected 10-digit format (1.0, 2.0, 3.0, 4.0, etc)
+
+                Now, let's find out the count of these non-standard values:
+                '''
+            )
+            
+            st.code(
+                '''
+                # Define non-standard BBL values
+                bbl_values = [np.nan, 1.0, 2.0, 3.0, 4.0, 5.0]
+
+                # Calculate the count of these non-standard values in the BBL column
+                inspection_df['bbl'].isin(bbl_values).sum()
+                '''
+            )
+            
+            st.code(
+                '''
+                4144
+                '''
+            )
+            
+            st.markdown(
+                '''
+                Non-standard BBL values are exactly the same as NaN values in the BIN column, indicating a pattern of missing values across these key columns.
+
+                - census_tract               3157
+                - bin                        4144
+                - bbl                        4144
+                - nta                        3153
+                - community_board            3153
+                - council_district           3157
+                '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown('#### Drop BBL Nulls')
+            
+            st.markdown(
+                '''
+                We are unable to rely on bbl make inferences because the features were missing across the same rows. We must abandon the hierarchy inference plan. To proceed, we drop rows with NaN values in the BIN column.
+                '''
+            )
+
+            st.code(
+                '''
+                # Dropping rows with null values in the 'bin' column
+                inspection_df = inspection_df.dropna(subset=['bin'])
+                '''
+            )
+            
+            st.markdown('Reevaluating Null Counts After BIN Column Cleanup')
+            
+            st.code(
+                '''
+                # Calculate the count of missing values in each column
+                null_counts_by_column = inspection_df.isnull().sum()
+
+                # Filter and display columns with missing values
+                null_counts_by_column[null_counts_by_column > 0]
+                '''
+            )
+            
+            st.code(
+                '''
+                zipcode                    30
+                phone                       6
+                score                    7440
+                community_board            30
+                council_district           34
+                census_tract               34
+                nta                        30
+                violation_code           1076
+                violation_description    1076
+                
+                ''', 
+            )
+            
+            
+            st.markdown(
+                '''
+                There was a significant overlap in missing data among these rows, very few nulls remain in relation to zoning columns.
+                '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown(
+                '''
+                #### Handling Remaining Zoning Nulls
+
+                For the small number of remaining NaNs (e.g., 34 census_track), we can safely drop them due to their limited impact on the dataset. I chose to drop 'council_district'. With some luck, these will overlap with the other zoning nulls.
+                '''
+            )
+            
+            st.code(
+                '''
+                # Dropping rows with null values in the 'council_district' column
+                inspection_df = inspection_df.dropna(subset=['council_district'])
+
+                # Reassessing the null counts in the dataset
+                null_counts_by_column = inspection_df.isnull().sum()
+                null_counts_by_column[null_counts_by_column > 0]
+                ''', 
+            )
+
+            st.code(
+                '''
+                phone                       6
+                score                    7438
+                violation_code           1076
+                violation_description    1076
+                
+                ''', 
+            )
+            
+
+            st.markdown(
+                '''
+                As expected, dropping council_district also removed the other zoning features with nulls.
+                '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown(
+                '''#### Identifying Relevant Inspection Types
+
+                Before proceeding with the score nulls, let's identify and focus on inspection types related to food safety.
+                '''
+            )
+            
+            st.code(
+                '''
+                # Creating an array of unique inspection_type values
+                unique_inspection_types = inspection_df['inspection_type'].unique()
+
+                # Convert the numpy array to a list and then sort it
+                sorted_inspection_types = sorted(unique_inspection_types.tolist())
+                sorted_inspection_types
+                ''' 
+            )
+            
+            
+            
+            # Create a markdown block with custom HTML for the code
+            display_styled_code_block(cn.inspection_type, max_height=300)
+            
+            v_spacer(height=2, sb=False)
+
+            st.markdown('#### Dropping Irrelevant Inspection Types')
+            st.markdown(
+                '''
+                We will exclude types such as "Calorie Posting," "Pre-permit," "Smoke-Free Air Act," and "Trans Fat," as they do not directly pertain to food safety
+                '''
+            )
+            
+            
+            st.code(
+                '''
+                original_length = len(inspection_df)
+                # List of inspection types to be removed
+                remove_types = ["Calorie Posting", "Pre-permit", "Smoke-Free Air Act", "Trans Fat"]
+
+                # Filter the DataFrame in a single step
+                inspection_df = inspection_df[~inspection_df['inspection_type'].str.startswith(tuple(remove_types))]
+                new_length = len(inspection_df)
+                print(f' {original_length} - {new_length} = {(original_length - new_length)}')
+                '''
+            )
+            
+            st.code(
+                '''
+                203187 - 155970 = 47217
+                '''
+            )
+            
+            st.markdown('Reevaluating Null Counts After BIN Column Cleanup')
+            
+            st.code(
+                '''
+                # Calculate the count of missing values in each column
+                null_counts_by_column = inspection_df.isnull().sum()
+
+                # Filter and display columns with missing values
+                null_counts_by_column[null_counts_by_column > 0]
+                '''
+            )
+            
+            st.code(
+                '''
+                score                    6024
+                violation_code            797
+                violation_description     797
+                '''
+            )
+            
+            st.markdown('''
+                        Eliminating these 47k irrelevant rows led to a modest decrease in null values, due to the overlap in missing data among these rows. However, a detailed analysis of a few outstanding violation codes is still required.
+                        ''')
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown('#### Continue Identifying Relevant Inspection Types')
+            
+            st.markdown('''
+                        Now, let's examine the history of a restaurant with a null value in the violation code to understand the reasons behind this occurrence.
+                        
+                        ''')
+            
+            st.code(
+                '''
+                # Group by 'camis' and 'inspection_date' and check for nulls in 'violation_code'
+                grouped = inspection_df.groupby(['camis', 'inspection_date'])
+                groups_with_nulls = grouped.apply(lambda x: x['violation_code'].isna().any())
+
+                # Count the number of rows in each group
+                group_sizes = grouped.size()
+
+                # Filter the DataFrame to include only those groups with nulls in 'violation_code' and at least 2 rows
+                filtered_groups = groups_with_nulls[groups_with_nulls].index.intersection(group_sizes[group_sizes >= 2].index)
+                filtered_df = inspection_df[inspection_df.set_index(['camis', 'inspection_date']).index.isin(filtered_groups)].reset_index(drop=True)
+
+                # Now, 'filtered_df' contains only the groups where there are null values in 'violation_code' and at least 2 rows in the group
+                filtered_df.sort_values(by='camis').head()
+                '''
+            )
+            
+            display_dataframe('inspections_camisg.csv')
+            
+            st.markdown(
+                '''
+                The data format clearly shows that individual violations from an inspection are recorded on separate rows. However, it's unusual to observe different types of inspections, such as 'Administrative Miscellaneous', occurring concurrently within a single visit. Notably, rows categorized under 'Administrative Miscellaneous' frequently present missing data in the 'score, 'violation_code' and 'violation_description' fields. The next step in our analysis involves determining the frequency of NaN values within the 'Administrative Miscellaneous' inspection category
+                '''
+            )
+            
+            st.code(
+                '''
+                # Group by 'inspection_type' and count null 'violation_code' entries
+                null_score_count = inspection_df.groupby('inspection_type').apply(lambda x: x['score'].isnull().sum())
+
+                # The result is a Series where the index is 'inspection_type' and the values are the counts of null 'violation_code'
+                print(null_score_count)
+
+                '''
+            )
+            
+            st.code(
+                '''
+                inspection_type
+                Administrative Miscellaneous / Compliance Inspection             99
+                Administrative Miscellaneous / Initial Inspection              4899
+                Administrative Miscellaneous / Re-inspection                    975
+                Administrative Miscellaneous / Reopening Inspection              43
+                Administrative Miscellaneous / Second Compliance Inspection       8
+                Cycle Inspection / Compliance Inspection                          0
+                Cycle Inspection / Initial Inspection                             0
+                Cycle Inspection / Re-inspection                                  0
+                Cycle Inspection / Reopening Inspection                           0
+                Cycle Inspection / Second Compliance Inspection                   0
+                Inter-Agency Task Force / Initial Inspection                      0
+                Inter-Agency Task Force / Re-inspection                           0
+                '''
+            )
+            
+            st.markdown(
+                '''
+                The analysis reveals that all the missing 'score' rows are tied to various "Administrative" inspection types. This pattern suggests that "Administrative" inspections might be documenting a distinct category of violations, particularly given the occurrence of both "Administrative" and "Cycle" inspections within the same visit. This finding indicates a potential strategy to either deduce the score for these cases or consider the removal of "Administrative" inspection types from our dataset.
+                '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown('#### Administrative inspections')
+            
+            st.markdown(
+                '''
+                To proceed effectively, it's important to closely examine the specific types of violations recorded under "Administrative" inspections. Understanding the nuances of these violations will assist in determining their relevance to our overall data analysis and their impact on the comprehensive scoring system.
+
+                We filter the dataset to only include rows where 'inspection_type' starts with "Administrative" and then identified the unique 'violation_description' values to understand the nature of violations in "Administrative" inspections.
+                '''
+            )
+            
+            st.code(
+                '''
+                # Filter for rows where 'inspection_type' starts with "Administrative"
+                administrative_rows = inspection_df[inspection_df['inspection_type'].str.startswith("Administrative")]
+
+                # Get a count of each unique 'violation_description' in these rows
+                violation_description_counts = administrative_rows['violation_description'].value_counts()
+
+                # Display the counts
+                violation_description_counts
+                '''
+            )
+            
+            
+
+            display_styled_code_block(cn.violation_description, max_height=300)
+            
+            st.markdown(
+                '''
+                The analysis of "Administrative" inspections revealed that these primarily involve non-food safety violations, such as missing posters, signage, or documentation, rather than critical food safety issues. Common violations in "Administrative" inspections include:
+
+                - Missing "Choking first aid" and "Alcohol and pregnancy" posters.
+                - Failure to post or conspicuously post current letter grades or Grade Pending cards.
+                - Providing certain items without customer request, such as plastic straws.
+                '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown('#### Dropping Administrative inspections')
+            
+            st.markdown(
+                '''
+                Given that "Administrative" inspections do not contribute to our food safety analysis and mainly involve non-critical violations, we made the decision to drop rows where the 'inspection_type' starts with "Administrative." This step helps streamline the dataset and focuses our analysis on relevant food safety factors.
+                '''
+            )
+            
+            st.code(
+                '''
+                # Drop rows where 'inspection_type' starts with "Administrative"
+                inspection_df = inspection_df[~inspection_df['inspection_type'].str.startswith("Administrative")]
+                null_counts_by_column = inspection_df.isnull().sum()
+                null_counts_by_column[null_counts_by_column > 0]
+                '''
+            )
+            
+            st.code(
+                '''
+                violation_code           438
+                violation_description    438
+                '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown('#### Investigating remaining violation code nulls')
+            st.markdown(
+                '''
+                As a result, the null values in the 'score' column have been successfully addressed, leaving no NaNs in this column. Moving forward, we will further investigate the remaining null values in the 'violation_code' and 'violation_description' columns to gain insights into their presence, even though their frequency is relatively low.
+                
+                Reevaluating Null Counts in inspection_type
+                '''
+            )
+            
+            st.code(
+                '''
+                # Group by 'inspection_type' and count null 'violation_code' entries
+                null_violation_count = inspection_df.groupby('inspection_type').apply(lambda x: x['violation_code'].isnull().sum())
+                null_violation_count
+                '''
+            )
+            
+            st.code(
+                '''
+                inspection_type
+                Cycle Inspection / Compliance Inspection             2
+                Cycle Inspection / Initial Inspection              256
+                Cycle Inspection / Re-inspection                    40
+                Cycle Inspection / Reopening Inspection             70
+                Cycle Inspection / Second Compliance Inspection      0
+                Inter-Agency Task Force / Initial Inspection        69
+                Inter-Agency Task Force / Re-inspection              1
+                dtype: int64
+                '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown('#### Investigating nulls by "action"')
+            st.markdown(
+                '''
+                As observed, the presence of null values in the 'violation_code' and 'violation_description' columns varies depending on the inspection type. While this insight doesn't directly explain why these nulls exist, it's a useful observation. To further investigate the underlying reasons behind these null values, we can analyze the 'action' column, which may provide more context.
+                '''
+            )
+            
+            st.code(
+                '''
+                violation_code_null = inspection_df[inspection_df['violation_code'].isna()]
+                # Group by 'inspection_type' and count null 'violation_code' entries
+                null_violation_count = violation_code_null.groupby('action').apply(lambda x: x['violation_code'].isnull().sum())
+                null_violation_count
+                '''
+            )
+            
+            
+            st.code(
+                '''
+                action
+                Establishment re-opened by DOHMH.                               70
+                No violations were recorded at the time of this inspection.    364
+                Violations were cited in the following area(s).                  4
+                
+                Null count: 438
+                '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown('#### Filling nulls indicating No Violations')
+            st.markdown(
+                '''
+                Our analysis has revealed that a significant portion of the null values in the 'violation_code' and 'violation_description' columns are associated with inspections where no violations were recorded. To address this, we plan to replace these null values for the 'violation_code' column with "none" and for the 'violation_description' column with "No violations were recorded." 
+                '''
+            )
+            
+            st.code(
+                '''
+                # Identify rows where 'action' starts with the specified strings and 'violation_code' is null
+                condition = inspection_df['violation_code'].isna() & inspection_df['action'].str.startswith("No violations were recorded at the time of this inspection.")
+
+                # Update 'violation_code' and 'violation_description' for these rows
+                inspection_df.loc[condition, ['violation_code', 'violation_description']] = ['none', 'No violations were recorded']
+
+                violation_code_null = inspection_df[inspection_df['violation_code'].isna()]
+                # Group by 'inspection_type' and count null 'violation_code' entries
+                null_violation_count = violation_code_null.groupby('action').apply(lambda x: x['violation_code'].isnull().sum())
+                null_violation_count
+                '''
+            )
+            
+            st.code(
+                '''
+                action
+                Establishment re-opened by DOHMH.                  70
+                Violations were cited in the following area(s).     4
+                '''
+            )
+            
+            st.markdown(
+                '''
+                To gain further clarity and address the remaining null values in the 'violation_code' and 'violation_description' columns, we will focus on a subset of rows related to reopening inspections. Specifically, we will examine these rows to understand why some of them have null values in these columns.
+                '''
+            )
+            
+            st.code(
+                '''
+                # Filter rows where 'inspection_type' starts with "Administrative"
+                action_reopened = inspection_df[inspection_df['action'].str.startswith("Establishment re-opened by DOHMH")]
+                action_reopened.head(5)
+                '''
+            )
+            
+            display_dataframe('action_reopened.csv')
+            
+            st.markdown(
+                '''
+                In the case of reopening inspections, we observed that some rows had NaN values in the violation code/description, while others had codes and descriptions, suggesting the absence of violations. Additionally, the "critical_flag" column contained 'Not Applicable' when no violations were present. We can reasonably assume that this indicates no violations were found during those inspections. Therefore, we will be replacing violation_code and violation_description NaNs with 'none' and 'No violations were recorded', respectively.
+                '''
+            )
+            
+            st.code(
+                '''
+                # Identify rows where 'action' starts with the specified strings and 'violation_code' is null
+                condition = (inspection_df['violation_code'].isna() & 
+                            inspection_df['action'].str.startswith("Establishment re-opened") &
+                        ( inspection_df['critical_flag'] == 'Not Applicable'))
+
+                # Update 'violation_code' and 'violation_description' for these rows
+                inspection_df.loc[condition, ['violation_code', 'violation_description']] = ['none', 'No violations were recorded']
+                '''
+            )
+            
+            st.markdown('Reevaluating Null Counts After BIN Column Cleanup')
+            
+            st.code(
+                '''
+                # Create a DataFrame containing rows where 'violation_code' is null
+                violation_code_null = inspection_df[inspection_df['violation_code'].isna()]
+
+                # Group the DataFrame by 'action' and count null 'violation_code' entries for each group
+                null_violation_count = violation_code_null.groupby('action').apply(lambda x: x['violation_code'].isnull().sum())
+
+                # Display the count of null 'violation_code' entries for each 'action'
+                null_violation_count
+                '''
+            )
+            
+            st.code(
+                '''
+                action
+                Violations were cited in the following area(s).    4
+                '''
+            )
+            
+            display_dataframe('action_violationcited.csv')
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown('#### Dropping remaining violations with nulls')
+            
+            st.markdown(
+                '''
+                We examined inspections with the action "Violations were cited in the following area(s)" which had a mix of nulls and codes in the violation_code column. Since we cannot determine what the code should be for these cases, we have made the decision to drop these rows.
+                '''
+            )
+            
+            st.code(
+                '''
+                inspection_df = inspection_df.drop(inspection_df[(inspection_df['violation_code'].isna()) &
+                                                                (inspection_df['action'].str.startswith("Violations were cited in the following area(s)"))].index)
+                '''
+            )
+            
+            v_spacer(height=2, sb=False)
+            
+            st.markdown(
+                '''
+                    ### Analyzing Phone
+
+                    Since only numerical values are left, we can fill these remaining nulls with a common placeholder, such as '0000000000,' to maintain data integrity:
+
+                    only numbers are left, we could simply fill na with 0000000000
+                '''
+            )
+            
+            st.code(
+                '''
+                # Fill remaining nulls in numerical columns with '0000000000'
+                inspection_df['phone'].fillna('0000000000', inplace=True)
+
+                # Reassessing the null counts in the dataset
+                null_counts_by_column = inspection_df.isnull().sum()
+                null_counts_by_column[null_counts_by_column > 0]
+                '''
+            )
+            st.markdown('Reevaluating Null Counts After BIN Column Cleanup')
+            st.code(
+                '''
+                
+                '''
+            )
+            
+            st.markdown(
+                '''
+                #### We have successfully addressed all the nulls in the DataFrame. 
+                '''
+            )
+            
         
-        st.code(
-            '''
-            action
-            Establishment re-opened by DOHMH.                  70
-            Violations were cited in the following area(s).     4
-            '''
-        )
         
-        st.markdown(
-            '''
-            To gain further clarity and address the remaining null values in the 'violation_code' and 'violation_description' columns, we will focus on a subset of rows related to reopening inspections. Specifically, we will examine these rows to understand why some of them have null values in these columns.
-            '''
-        )
         
-        st.code(
-            '''
-            # Filter rows where 'inspection_type' starts with "Administrative"
-            action_reopened = inspection_df[inspection_df['action'].str.startswith("Establishment re-opened by DOHMH")]
-            action_reopened.head(5)
-            '''
-        )
         
-        display_dataframe('action_reopened.csv')
+        
+        
         
     with tab3:
         st.markdown('')
