@@ -42,7 +42,7 @@ css = '''
         font-size: x-large;
     }
     
-    .footer {
+    footer {
         visibility: hidden;
         }
 
