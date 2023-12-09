@@ -41,6 +41,11 @@ css = '''
     .st-emotion-cache-q8sbsg p {
         font-size: x-large;
     }
+    
+    .footer {
+        visibility: hidden;
+        }
+
 </style>
 '''
 def display_dataframe(file_name, title='', description='', max_height=720):
